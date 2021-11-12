@@ -40,6 +40,7 @@ add_executable(
   MergeTest.cpp
   MergeJoinTest.cpp
   HashJoinTest.cpp
+  HybridExecOperatorTest.cpp
   PlanNodeToStringTest.cpp
   FunctionSignatureBuilderTest.cpp
   UnnestTest.cpp
