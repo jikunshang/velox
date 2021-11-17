@@ -23,6 +23,7 @@ add_subdirectory(row)
 add_subdirectory(flag_definitions)
 add_subdirectory(external/date)
 add_subdirectory(external/md5)
+add_subdirectory(cider)
 #
 
 # examples depend on expression
