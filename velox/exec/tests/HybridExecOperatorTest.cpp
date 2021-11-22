@@ -49,7 +49,7 @@ class HybridExecOperatorTest : public OperatorTestBase {
 TEST_F(HybridExecOperatorTest, hybrid) {
   Operator::registerOperator(HybridExecOperator::planNodeTranslator);
   std::vector<RowVectorPtr> vectors;
-  for (int32_t i = 0; i < 1; ++i) {
+  for (int32_t i = 0; i < 10; ++i) {
     auto vector = std::dynamic_pointer_cast<RowVector>(
         BatchMaker::createBatch(rowType_, 100, *pool_));
     vectors.push_back(vector);
