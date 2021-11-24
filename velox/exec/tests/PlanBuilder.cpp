@@ -16,10 +16,11 @@
 #include "velox/exec/tests/PlanBuilder.h"
 #include <velox/exec/Aggregate.h>
 #include <velox/exec/HashPartitionFunction.h>
-#include <velox/exec/HybridExecOperator.h>
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/parse/Expressions.h"
 #include "velox/parse/ExpressionsParser.h"
+
+#include <velox/exec/HybridExecOperator.h>
 
 using namespace facebook::velox;
 using namespace facebook::velox::connector::hive;
