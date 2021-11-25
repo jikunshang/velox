@@ -15,10 +15,13 @@
  */
 #pragma once
 
-#include "velox/exec/Operator.h"
 #include "velox/core/HybridPlanNode.h"
+#include "velox/exec/Operator.h"
 
-// include order matters
+// FIXME: include order matters since omnisci header file is not clean yet and
+// may define some dirty macro which will influence velox code base, so we put
+// it at the end of include chain. This is just a work around, if some further
+// code change have similar issue, best way is make header file cleaner.
 #include "Cider/CiderExecutionKernel.h"
 
 namespace facebook::velox::exec {
