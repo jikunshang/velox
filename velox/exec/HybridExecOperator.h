@@ -24,6 +24,7 @@
 // code change have similar issue, best way is make header file cleaner.
 #include "Cider/CiderExecutionKernel.h"
 #include "QueryEngine/RelAlgExecutionUnit.h"
+#include "QueryEngine/InputMetadata.h"
 
 namespace facebook::velox::exec {
 class HybridExecOperator : public Operator {
@@ -37,13 +38,16 @@ class HybridExecOperator : public Operator {
             hybridPlanNode->outputType(),
             operatorId,
             hybridPlanNode->id(),
-            "hybrid") {
+            "hybrid"),
+            relAlgExecUnit_(hybridPlanNode->getCiderParamContext()->getExeUnitBasedOnContext()) {
+    assert(relAlgExecUnit_);
+    // TODO: we should know the query type
+
     // construct and compile a kernel here.
-    auto exeUnit =
-        hybridPlanNode->getCiderParamContext()->getExeUnitBasedOnContext();
     ciderKernel_ = CiderExecutionKernel::create();
     // todo: we don't have input yet.
-    // ciderKernel_->compileWorkUnit();
+    ciderKernel_->compileWorkUnit(*relAlgExecUnit_, buildInputTableInfo());
+    std::cout << "IR: " << ciderKernel_->getLlvmIR() << std::endl;
   };
 
   static PlanNodeTranslator planNodeTranslator;
@@ -63,6 +67,37 @@ class HybridExecOperator : public Operator {
   std::shared_ptr<CiderExecutionKernel> ciderKernel_;
   RowVectorPtr result_;
 
+  bool isFilter = false;
+  bool isAgg = false;
+  bool isGroupBy = false;
+  bool isSort = false;
+  bool finished_ = false;
+  bool isJoin = false;
+
+  const std::shared_ptr<RelAlgExecutionUnit> relAlgExecUnit_;
+
+  // init this according to input expressions.
+  std::vector<int64_t> partialAggResult;
+  RowVectorPtr tmpOut;
+
   void process();
+
+  std::vector<InputTableInfo> buildInputTableInfo() {
+    std::vector<InputTableInfo> query_infos;
+    Fragmenter_Namespace::FragmentInfo fi_0;
+    fi_0.fragmentId = 0;
+    fi_0.shadowNumTuples = 1024;
+    fi_0.physicalTableId = relAlgExecUnit_->input_descs[0].getTableId();
+    fi_0.setPhysicalNumTuples(1024);
+
+    Fragmenter_Namespace::TableInfo ti_0;
+    ti_0.fragments = {fi_0};
+    ti_0.setPhysicalNumTuples(1024);
+
+    InputTableInfo iti_0{relAlgExecUnit_->input_descs[0].getTableId(), ti_0};
+    query_infos.push_back(iti_0);
+
+    return query_infos;
+  }
 };
 } // namespace facebook::velox::exec

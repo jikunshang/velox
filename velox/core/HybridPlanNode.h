@@ -15,8 +15,9 @@
  */
 #pragma once
 
-#include "QueryEngine/RelAlgExecutionUnit.h"
 #include "velox/core/PlanNode.h"
+
+#include "QueryEngine/RelAlgExecutionUnit.h"
 
 namespace facebook::velox::core {
 /**

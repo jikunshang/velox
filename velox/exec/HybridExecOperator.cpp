@@ -44,22 +44,48 @@ void HybridExecOperator::addInput(RowVectorPtr input) {
 }
 
 RowVectorPtr HybridExecOperator::getOutput() {
+  // process
+
+  if (isGroupBy) {
+    throw std::runtime_error("not support now!");
+  }
+  if (isAgg) {
+    if (finished_ || (!isFinishing_)) {
+      return nullptr;
+    }
+
+    // convert partial agg Result to RowVector
+  } else if (isFilter) {
+    return tmpOut;
+  }
+
   return std::move(result_);
 }
 
 void HybridExecOperator::process() {
-  // 1. convert data
-  // Convertor.V2O
+  if (isGroupBy) {
+    throw std::runtime_error("not support now!");
+  }
+  if (isAgg) {
+    // 1. convert input data.
 
-  // 2. call ciderKernel_ run
-  // ciderKernel_->runWithData();
+    // 2. convert partial result
 
-  // 3. convert data
-  // result_ = Convertor.O2V()
+    // 3. call run method
 
+    // 4. convert result into partial agg result
+  } else if (isFilter) {
+    // 1. convert input data.
+
+    // 2. call run method
+
+    // 3. convert result into tmpOut/ RowVectorPtr
+  }
+
+  if (isSort) {
+  }
   // for now, we just steal input_
   totalRowsProcessed_ += input_->size();
   result_ = std::move(input_);
-
 }
 } // namespace facebook::velox::exec

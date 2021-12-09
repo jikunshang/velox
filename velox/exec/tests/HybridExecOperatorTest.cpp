@@ -19,10 +19,11 @@
 #include "velox/exec/Driver.h"
 #include "velox/exec/tests/OperatorTestBase.h"
 #include "velox/exec/tests/PlanBuilder.h"
-#include "velox/exec/HybridExecOperator.h"
 
 // FIXME: Workaround dependency issue from omnisci and velox integrations
+#include "velox/cider/VeloxPlanToCiderExecutionUnit.h"
 #include "velox/core/HybridPlanNode.h"
+#include "velox/exec/HybridExecOperator.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::core;
@@ -33,22 +34,22 @@ using facebook::velox::test::BatchMaker;
 
 class HybridExecOperatorTest : public OperatorTestBase {
  protected:
-  // current hybrid node just return input, so use SQL select *
-  void assertHybrid(
-      std::vector<RowVectorPtr>&& vectors,
-      const std::string& duckDBSql = "",
-      const std::string& hybridCondition = "") {
-    auto plan =
-        PlanBuilder().values(vectors).hybrid("just for test").planNode();
-    assertQuery(plan, "SELECT * FROM tmp");
+  void assertQueryPlan(
+      const std::shared_ptr<core::PlanNode>& planNode,
+      const std::string& duckDBSql) {
+    facebook::velox::cider::CiderExecutionUnitGenerator generator;
+    auto hybridPlan = generator.transformPlan(planNode);
+    // TODO: we should verify whether this hybridPlan is valid.
+    assertQuery(hybridPlan, duckDBSql);
   }
 
   std::shared_ptr<const RowType> rowType_{
       ROW({"c0", "c1", "c2", "c3"},
-          {BIGINT(), INTEGER(), SMALLINT(), DOUBLE()})};
+          {INTEGER(), DOUBLE(), INTEGER(), INTEGER()})};
 };
 
-TEST_F(HybridExecOperatorTest, hybrid) {
+// FIXME: this test will fail currently, since we didn't impl hybridOperator
+TEST_F(HybridExecOperatorTest, complexNode) {
   Operator::registerOperator(HybridExecOperator::planNodeTranslator);
   std::vector<RowVectorPtr> vectors;
   for (int32_t i = 0; i < 10; ++i) {
@@ -58,5 +59,17 @@ TEST_F(HybridExecOperatorTest, hybrid) {
   }
   createDuckDbTable(vectors);
 
-  assertHybrid(std::move(vectors));
+  auto plan =
+      PlanBuilder()
+          .values(vectors)
+          .filter("(c2 < 1000)")
+          .project(
+              std::vector<std::string>{"c0 * c1"},
+              std::vector<std::string>{"e1"})
+          .aggregation(
+              {}, {"sum(e1)"}, {}, core::AggregationNode::Step::kPartial, false)
+          .partitionedOutput({}, 1)
+          .planNode();
+
+  assertQueryPlan(plan, "SELECT SUM(c0 * c1) from tmp where c2 < 1000");
 }
