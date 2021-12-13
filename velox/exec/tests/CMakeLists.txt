@@ -35,6 +35,7 @@ add_executable(
   CiderTest.cpp
   CrossJoinTest.cpp
   DriverTest.cpp
+  QuerySimulationTest.cpp
   EnforceSingleRowTest.cpp
   FilterProjectTest.cpp
   TableScanTest.cpp
