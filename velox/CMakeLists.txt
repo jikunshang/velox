@@ -24,6 +24,7 @@ add_subdirectory(flag_definitions)
 add_subdirectory(external/date)
 add_subdirectory(external/md5)
 add_subdirectory(cider)
+add_subdirectory(omnisci)
 #
 
 # examples depend on expression
