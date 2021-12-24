@@ -16,13 +16,11 @@
 
 #include <folly/init/Init.h>
 #include "velox/dwio/dwrf/test/utils/BatchMaker.h"
-#include "velox/exec/Driver.h"
 #include "velox/exec/tests/OperatorTestBase.h"
 #include "velox/exec/tests/PlanBuilder.h"
 
 // FIXME: Workaround dependency issue from omnisci and velox integrations
 #include "velox/cider/VeloxPlanToCiderExecutionUnit.h"
-#include "velox/core/HybridPlanNode.h"
 #include "velox/exec/HybridExecOperator.h"
 
 using namespace facebook::velox;
@@ -48,61 +46,7 @@ class HybridExecOperatorTest : public OperatorTestBase {
           {INTEGER(), DOUBLE(), INTEGER(), INTEGER(), BIGINT()})};
 };
 
-//// FIXME: this test will fail currently, since we didn't impl hybridOperator
-// TEST_F(HybridExecOperatorTest, sum_int_product_double) {
-//   Operator::registerOperator(HybridExecOperator::planNodeTranslator);
-//   std::vector<RowVectorPtr> vectors;
-//   for (int32_t i = 0; i < 1; ++i) {
-//     auto vector = std::dynamic_pointer_cast<RowVector>(
-//         BatchMaker::createBatch(rowType_, 100, *pool_));
-//     vectors.push_back(vector);
-//   }
-//   createDuckDbTable(vectors);
-//
-//   auto plan =
-//       PlanBuilder()
-//           .values(vectors)
-//           .filter("(c2 < 1000)")
-//           .project(
-//               std::vector<std::string>{"c0 * c1"},
-//               std::vector<std::string>{"e1"})
-//           .aggregation(
-//               {}, {"sum(e1)"}, {}, core::AggregationNode::Step::kPartial,
-//               false)
-//           //          .partitionedOutput({}, 1)
-//           .planNode();
-//   //  std::cout<< plan->toString() <<std::endl;
-//
-//   assertQueryPlan(plan, "SELECT SUM(c0 * c1) from tmp where c2 < 1000");
-// }
-//
-// TEST_F(HybridExecOperatorTest, sum_int_product_int) {
-//   Operator::registerOperator(HybridExecOperator::planNodeTranslator);
-//   std::vector<RowVectorPtr> vectors;
-//   for (int32_t i = 0; i < 1; ++i) {
-//     auto vector = std::dynamic_pointer_cast<RowVector>(
-//         BatchMaker::createBatch(rowType_, 100, *pool_));
-//     vectors.push_back(vector);
-//   }
-//   createDuckDbTable(vectors);
-//
-//   auto plan =
-//       PlanBuilder()
-//           .values(vectors)
-//           .filter("(c2 < 1000)")
-//           .project(
-//               std::vector<std::string>{"c0 * c3"},
-//               std::vector<std::string>{"e1"})
-//           .aggregation(
-//               {}, {"sum(e1)"}, {}, core::AggregationNode::Step::kPartial,
-//               false)
-//           //          .partitionedOutput({}, 1)
-//           .planNode();
-//
-//   std::cout << plan->toString() << std::endl;
-//
-//   assertQueryPlan(plan, "SELECT SUM(c0 * c3) from tmp where c2 < 1000");
-// }
+// simple agg test
 
 TEST_F(HybridExecOperatorTest, sum_int) {
   Operator::registerOperator(HybridExecOperator::planNodeTranslator);
@@ -175,3 +119,62 @@ TEST_F(HybridExecOperatorTest, sum_bigint) {
 
   assertQueryPlan(plan, "SELECT SUM(c4) from tmp where c2 < 100");
 }
+
+// agg + project test
+TEST_F(HybridExecOperatorTest, sum_int_product_double) {
+  Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+  std::vector<RowVectorPtr> vectors;
+  for (int32_t i = 0; i < 1; ++i) {
+    auto vector = std::dynamic_pointer_cast<RowVector>(
+        BatchMaker::createIncreaseBatch(rowType_, 100, *pool_));
+    vectors.push_back(vector);
+  }
+  createDuckDbTable(vectors);
+
+  auto plan =
+      PlanBuilder()
+      .values(vectors)
+      .filter("(c2 < 50)")
+      .project(
+          std::vector<std::string>{"c0 * c1"},
+          std::vector<std::string>{"e1"})
+          .aggregation(
+              {}, {"sum(e1)"}, {}, core::AggregationNode::Step::kPartial,
+              false)
+              //          .partitionedOutput({}, 1)
+              .planNode();
+  //  std::cout<< plan->toString() <<std::endl;
+
+  assertQueryPlan(plan, "SELECT SUM(c0 * c1) from tmp where c2 < 50");
+}
+
+// Currently, int * int will cause some type issue, cause some check failed in omnisci.
+// TEST_F(HybridExecOperatorTest, sum_int_product_int) {
+//   Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+//   std::vector<RowVectorPtr> vectors;
+//   for (int32_t i = 0; i < 1; ++i) {
+//     auto vector = std::dynamic_pointer_cast<RowVector>(
+//         BatchMaker::createIncreaseBatch(rowType_, 100, *pool_));
+//     vectors.push_back(vector);
+//   }
+//   createDuckDbTable(vectors);
+//
+//   auto plan =
+//       PlanBuilder()
+//           .values(vectors)
+//           .filter("(c2 < 50)")
+//           .project(
+//               std::vector<std::string>{"c0 * c3"},
+//               std::vector<std::string>{"e1"})
+//           .aggregation(
+//               {}, {"sum(e1)"}, {}, core::AggregationNode::Step::kPartial,
+//               false)
+//           //          .partitionedOutput({}, 1)
+//           .planNode();
+//
+//   std::cout << plan->toString() << std::endl;
+//
+//   assertQueryPlan(plan, "SELECT SUM(c0 * c3) from tmp where c2 < 50");
+// }
+
+// TODO: verify data nith Null value
