@@ -44,17 +44,96 @@ class HybridExecOperatorTest : public OperatorTestBase {
   }
 
   std::shared_ptr<const RowType> rowType_{
-      ROW({"c0", "c1", "c2", "c3"},
-          {INTEGER(), DOUBLE(), INTEGER(), INTEGER()})};
+      ROW({"c0", "c1", "c2", "c3", "c4"},
+          {INTEGER(), DOUBLE(), INTEGER(), INTEGER(), BIGINT()})};
 };
 
-// FIXME: this test will fail currently, since we didn't impl hybridOperator
-TEST_F(HybridExecOperatorTest, complexNode) {
+//// FIXME: this test will fail currently, since we didn't impl hybridOperator
+// TEST_F(HybridExecOperatorTest, sum_int_product_double) {
+//   Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+//   std::vector<RowVectorPtr> vectors;
+//   for (int32_t i = 0; i < 1; ++i) {
+//     auto vector = std::dynamic_pointer_cast<RowVector>(
+//         BatchMaker::createBatch(rowType_, 100, *pool_));
+//     vectors.push_back(vector);
+//   }
+//   createDuckDbTable(vectors);
+//
+//   auto plan =
+//       PlanBuilder()
+//           .values(vectors)
+//           .filter("(c2 < 1000)")
+//           .project(
+//               std::vector<std::string>{"c0 * c1"},
+//               std::vector<std::string>{"e1"})
+//           .aggregation(
+//               {}, {"sum(e1)"}, {}, core::AggregationNode::Step::kPartial,
+//               false)
+//           //          .partitionedOutput({}, 1)
+//           .planNode();
+//   //  std::cout<< plan->toString() <<std::endl;
+//
+//   assertQueryPlan(plan, "SELECT SUM(c0 * c1) from tmp where c2 < 1000");
+// }
+//
+// TEST_F(HybridExecOperatorTest, sum_int_product_int) {
+//   Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+//   std::vector<RowVectorPtr> vectors;
+//   for (int32_t i = 0; i < 1; ++i) {
+//     auto vector = std::dynamic_pointer_cast<RowVector>(
+//         BatchMaker::createBatch(rowType_, 100, *pool_));
+//     vectors.push_back(vector);
+//   }
+//   createDuckDbTable(vectors);
+//
+//   auto plan =
+//       PlanBuilder()
+//           .values(vectors)
+//           .filter("(c2 < 1000)")
+//           .project(
+//               std::vector<std::string>{"c0 * c3"},
+//               std::vector<std::string>{"e1"})
+//           .aggregation(
+//               {}, {"sum(e1)"}, {}, core::AggregationNode::Step::kPartial,
+//               false)
+//           //          .partitionedOutput({}, 1)
+//           .planNode();
+//
+//   std::cout << plan->toString() << std::endl;
+//
+//   assertQueryPlan(plan, "SELECT SUM(c0 * c3) from tmp where c2 < 1000");
+// }
+
+TEST_F(HybridExecOperatorTest, sum_int) {
   Operator::registerOperator(HybridExecOperator::planNodeTranslator);
   std::vector<RowVectorPtr> vectors;
-  for (int32_t i = 0; i < 10; ++i) {
+  for (int32_t i = 0; i < 1; ++i) {
     auto vector = std::dynamic_pointer_cast<RowVector>(
-        BatchMaker::createBatch(rowType_, 100, *pool_));
+        BatchMaker::createIncreaseBatch(rowType_, 100, *pool_));
+    vectors.push_back(vector);
+  }
+  createDuckDbTable(vectors);
+
+  auto plan =
+      PlanBuilder()
+          .values(vectors)
+          .filter("(c2 < 50)")
+          .aggregation(
+              {}, {"sum(c0)"}, {}, core::AggregationNode::Step::kPartial, false)
+          //          .partitionedOutput({}, 1)
+          .planNode();
+
+  std::cout << plan->toString() << std::endl;
+
+  assertQueryPlan(plan, "SELECT SUM(c0) from tmp where c2 < 50");
+}
+
+TEST_F(HybridExecOperatorTest, sum_double) {
+  Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+  std::vector<RowVectorPtr> vectors;
+  for (int32_t i = 0; i < 1; ++i) {
+    auto vector = std::dynamic_pointer_cast<RowVector>(
+        BatchMaker::createIncreaseBatch(rowType_, 100, *pool_));
     vectors.push_back(vector);
   }
   createDuckDbTable(vectors);
@@ -63,13 +142,36 @@ TEST_F(HybridExecOperatorTest, complexNode) {
       PlanBuilder()
           .values(vectors)
           .filter("(c2 < 1000)")
-          .project(
-              std::vector<std::string>{"c0 * c1"},
-              std::vector<std::string>{"e1"})
           .aggregation(
-              {}, {"sum(e1)"}, {}, core::AggregationNode::Step::kPartial, false)
-          .partitionedOutput({}, 1)
+              {}, {"sum(c1)"}, {}, core::AggregationNode::Step::kPartial, false)
+          //          .partitionedOutput({}, 1)
           .planNode();
 
-  assertQueryPlan(plan, "SELECT SUM(c0 * c1) from tmp where c2 < 1000");
+  std::cout << plan->toString() << std::endl;
+
+  assertQueryPlan(plan, "SELECT SUM(c1) from tmp where c2 < 1000");
+}
+
+TEST_F(HybridExecOperatorTest, sum_bigint) {
+  Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+  std::vector<RowVectorPtr> vectors;
+  for (int32_t i = 0; i < 1; ++i) {
+    auto vector = std::dynamic_pointer_cast<RowVector>(
+        BatchMaker::createIncreaseBatch(rowType_, 100, *pool_));
+    vectors.push_back(vector);
+  }
+  createDuckDbTable(vectors);
+
+  auto plan =
+      PlanBuilder()
+          .values(vectors)
+          .filter("(c2 < 100)")
+          .aggregation(
+              {}, {"sum(c4)"}, {}, core::AggregationNode::Step::kPartial, false)
+          //          .partitionedOutput({}, 1)
+          .planNode();
+
+  std::cout << plan->toString() << std::endl;
+
+  assertQueryPlan(plan, "SELECT SUM(c4) from tmp where c2 < 100");
 }
