@@ -43,28 +43,18 @@ class HybridExecOperator : public Operator {
             operatorId,
             hybridPlanNode->id(),
             "hybrid"),
-            relAlgExecUnit_(hybridPlanNode->getCiderParamContext()->getExeUnitBasedOnContext()) {
+        relAlgExecUnit_(hybridPlanNode->getCiderParamContext()
+                            ->getExeUnitBasedOnContext()) {
     assert(relAlgExecUnit_);
-
-    int groupbySize = relAlgExecUnit_->groupby_exprs.size();
-    auto element = relAlgExecUnit_->groupby_exprs.front() == nullptr;
     // TODO: we should know the query type
+    isGroupBy_ =
+        hybridPlanNode->getCiderParamContext()->nodeProperty_.hasGroupBy;
+    isAgg_ = hybridPlanNode->getCiderParamContext()->nodeProperty_.hasAgg;
+    isFilter_ = hybridPlanNode->getCiderParamContext()->nodeProperty_.hasFilter;
 
-    //    auto ptr = (Analyzer::AggExpr*)relAlgExecUnit_->target_exprs[0];
-    //    auto s = ptr->toString();
-    //
-    //    const auto agg_expr = dynamic_cast<const
-    //    Analyzer::AggExpr*>(relAlgExecUnit_->target_exprs[0]); auto s_ =
-    //    agg_expr->toString();
-
-    //    isGroupBy = hybridPlanNode->getNodeProperty()->hasGroupBy;
-    //    isAgg = hybridPlanNode->getNodeProperty()->hasAgg;
-    //    isFilter = hybridPlanNode->getNodeProperty()->hasFilter;
-    isAgg = true;
-
-    if (isAgg) {
+    if (isAgg_) {
       int numCols = relAlgExecUnit_->target_exprs.size();
-      partialAggResult.resize(numCols);
+      partialAggResult_.resize(numCols);
       std::vector<TypePtr> types;
       std::vector<std::string> names;
       for (int i = 0; i < numCols; i++) {
@@ -99,17 +89,23 @@ class HybridExecOperator : public Operator {
 
   RowVectorPtr getOutput() override;
 
+  void finish() override {
+    Operator::finish();
+  }
+
  private:
   int64_t totalRowsProcessed_ = 0;
   std::shared_ptr<CiderExecutionKernel> ciderKernel_;
   RowVectorPtr result_;
 
-  bool isFilter = false;
-  bool isAgg = false;
-  bool isGroupBy = false;
-  bool isSort = false;
+  bool isFilter_ = false;
+  bool isAgg_ = false;
+  bool isGroupBy_ = false;
+  bool isSort_ = false;
+  bool isJoin_ = false;
+  bool hasData_ = false;
+
   bool finished_ = false;
-  bool isJoin = false;
 
   std::shared_ptr<const RowType> rowType_;
   std::vector<VectorPtr> columns_;
@@ -117,7 +113,7 @@ class HybridExecOperator : public Operator {
   const std::shared_ptr<RelAlgExecutionUnit> relAlgExecUnit_;
 
   // init this according to input expressions.
-  std::vector<int64_t> partialAggResult;
+  std::vector<int64_t> partialAggResult_;
   RowVectorPtr tmpOut;
 
   std::shared_ptr<DataConvertor> dataConvertor_;

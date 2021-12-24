@@ -33,14 +33,17 @@ Operator::PlanNodeTranslator HybridExecOperator::planNodeTranslator =
 };
 
 bool HybridExecOperator::needsInput() const {
-  // TODO
-  return !input_;
+  // TODO: just for agg, what about other case
+  return !isFinishing_;
 }
 
 void HybridExecOperator::addInput(RowVectorPtr input) {
-  // TODO
   input_ = std::move(input);
   process();
+  // we should have new return data
+  if (!hasData_) {
+    hasData_ = true;
+  }
 }
 
 VectorPtr HybridExecOperator::convertColumn(
@@ -147,12 +150,13 @@ VectorPtr HybridExecOperator::convertColumn(
 }
 
 RowVectorPtr HybridExecOperator::getOutput() {
-  // process
-
-  if (isGroupBy) {
+  if (isGroupBy_) {
     throw std::runtime_error("not support now!");
-  } else if (isAgg) {
+  } else if (isAgg_) {
     if (finished_ || (!isFinishing_)) {
+      return nullptr;
+    }
+    if (!hasData_) {
       return nullptr;
     }
 
@@ -160,14 +164,16 @@ RowVectorPtr HybridExecOperator::getOutput() {
     for (int i = 0; i < columns_.size(); i++) {
       columns_[i] = convertColumn(
           rowType_->childAt(i),
-          (int8_t*)(partialAggResult.data() + sizeof(int64_t) * i),
+          (int8_t*)(partialAggResult_.data() + sizeof(int64_t) * i),
           1,
           pool());
     }
     auto aggRes = std::make_shared<RowVector>(
         pool(), rowType_, BufferPtr(nullptr), 1, columns_);
+    // we return data, so no data left.
+    hasData_ = false;
     return aggRes;
-  } else if (isFilter) {
+  } else if (isFilter_) {
     return tmpOut;
   }
 
@@ -175,24 +181,25 @@ RowVectorPtr HybridExecOperator::getOutput() {
 }
 
 void HybridExecOperator::process() {
-  if (isGroupBy) {
+  if (isGroupBy_) {
     throw std::runtime_error("not support now!");
   }
-  if (isAgg) {
+  if (isAgg_) {
     // 1. convert input data.
     int64_t numRows = input_->size();
     auto ciderBuffer = dataConvertor_->convertToCider(input_, numRows);
 
-    int32_t colNum = 1; // FIXME:
+    int32_t colNum = partialAggResult_.size(); // FIXME:
     int64_t** outBuffers = (int64_t**)std::malloc(sizeof(int64_t*) * colNum);
-    outBuffers[0] = (int64_t*)std::malloc(sizeof(int64_t) * numRows); // return 1 row
+    outBuffers[0] =
+        (int64_t*)std::malloc(sizeof(int64_t) * 1); // agg only return 1 row
 
     int32_t matchedRows = 0;
     int32_t errCode = 0;
 
     // 2. convert partial result
     int64_t* aggInitValue =
-        partialAggResult.data(); // TODO: verify, this will be overwrite?
+        partialAggResult_.data(); // TODO: verify, this will be overwrite?
 
     // 3. call run method
     ciderKernel_->runWithData(
@@ -204,8 +211,9 @@ void HybridExecOperator::process() {
         aggInitValue);
 
     // 4. convert result into partial agg result
-    partialAggResult[0] = outBuffers[0][0];
-  } else if (isFilter) {
+    partialAggResult_[0] = outBuffers[0][0];
+  } else if (isFilter_) {
+    // NOTE: not ready yet!!
     // 1. convert input data.
     int64_t numRows = input_->size();
     auto ciderBuffer = dataConvertor_->convertToCider(input_, numRows);
@@ -229,8 +237,10 @@ void HybridExecOperator::process() {
     // TODO: seems a lot overhead here
   }
 
-  if (isSort) {
+  if (isSort_) {
+    // TODO: impl
   }
+  // TODO: remove this part
   // for now, we just steal input_
   totalRowsProcessed_ += input_->size();
   result_ = std::move(input_);
