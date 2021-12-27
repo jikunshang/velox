@@ -239,6 +239,7 @@ void HybridExecOperator::process() {
 
   if (isSort_) {
     // TODO: impl
+    throw std::runtime_error("not support now!");
   }
   // TODO: remove this part
   // for now, we just steal input_
