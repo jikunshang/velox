@@ -60,7 +60,8 @@ add_executable(
   HybridExecOperatorTest.cpp
   PlanNodeToStringTest.cpp
   FunctionSignatureBuilderTest.cpp
-  UnnestTest.cpp)
+  UnnestTest.cpp
+  HybridPlanPrototypeTest.cpp)
 
 add_test(
   NAME velox_exec_test
