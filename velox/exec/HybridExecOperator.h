@@ -71,7 +71,7 @@ class HybridExecOperator : public Operator {
     ciderKernel_ = CiderExecutionKernel::create();
     // todo: we don't have input yet.
     ciderKernel_->compileWorkUnit(*relAlgExecUnit_, buildInputTableInfo());
-    std::cout << "IR: " << ciderKernel_->getLlvmIR() << std::endl;
+//    std::cout << "IR: " << ciderKernel_->getLlvmIR() << std::endl;
 
     // hardcode, init a DataConvertor here.
     dataConvertor_ = DataConvertor::create(CONVERT_TYPE::DIRECT);
