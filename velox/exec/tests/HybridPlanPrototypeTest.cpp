@@ -13,6 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+#include <chrono>
+
 #include "velox/common/base/test_utils/GTestUtils.h"
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
@@ -33,6 +36,10 @@ namespace fs = std::filesystem;
 #include <experimental/filesystem>
 namespace fs = std::experimental::filesystem;
 #endif
+
+// FIXME: Workaround dependency issue from omnisci and velox integrations
+#include "velox/cider/VeloxPlanToCiderExecutionUnit.h"
+#include "velox/exec/HybridExecOperator.h"
 
 using namespace facebook::velox;
 using namespace facebook::velox::connector::hive;
@@ -81,6 +88,42 @@ class HybridPlanPrototypeTest : public virtual HiveConnectorTestBase,
   bool EndsWith(const std::string& data, const std::string& suffix) {
     return data.find(suffix, data.size() - suffix.size()) != std::string::npos;
   }
+
+  std::vector<exec::Split> createSplits() {
+    std::string current_path = fs::current_path().c_str();
+    std::string dir = "/tmp/dev/velox/velox/exec/tests/data/result/";
+    path file_path(dir);
+    std::vector<std::string> file_list;
+    for (auto i = directory_iterator(file_path); i != directory_iterator();
+         i++) {
+      if (!is_directory(i->path())) {
+        std::string single_file_path = i->path().filename().string();
+        if (EndsWith(single_file_path, ".orc")) {
+          //          std::cout << single_file_path << std::endl;
+          file_list.push_back(dir + single_file_path);
+        }
+      } else {
+        continue;
+      }
+    }
+    std::vector<std::shared_ptr<connector::ConnectorSplit>> connectorSplits;
+    for (auto single_file_path : file_list) {
+      auto split = std::make_shared<HiveConnectorSplit>(
+          kHiveConnectorId,
+          single_file_path,
+          facebook::velox::dwio::common::FileFormat::ORC,
+          0,
+          fs::file_size(single_file_path));
+      connectorSplits.push_back(split);
+    }
+
+    std::vector<exec::Split> splits;
+    splits.reserve(connectorSplits.size());
+    for (const auto& connectorSplit : connectorSplits) {
+      splits.emplace_back(exec::Split(folly::copy(connectorSplit), -1));
+    }
+    return splits;
+  }
 };
 
 // prototype test based on tpc-h Q6
@@ -88,42 +131,10 @@ TEST_P(HybridPlanPrototypeTest, prototypeTest) {
   auto rowType =
       ROW({"l_quantity", "l_extendedprice", "l_discount", "l_shipdate"},
           {DOUBLE(), DOUBLE(), DOUBLE(), DOUBLE()});
-  // get data splits
-  std::string current_path = fs::current_path().c_str();
-  std::string dir = current_path + "/velox/exec/tests/data/result/";
-  path file_path(dir);
-  std::vector<std::string> file_list;
-  for (auto i = directory_iterator(file_path); i != directory_iterator(); i++) {
-    if (!is_directory(i->path())) {
-      std::string single_file_path = i->path().filename().string();
-      if (EndsWith(single_file_path, ".orc")) {
-        std::cout << single_file_path << std::endl;
-        file_list.push_back(dir + single_file_path);
-      }
-    } else {
-      continue;
-    }
-  }
-  std::vector<std::shared_ptr<connector::ConnectorSplit>> connectorSplits;
-  for (auto single_file_path : file_list) {
-    auto split = std::make_shared<HiveConnectorSplit>(
-        kHiveConnectorId,
-        single_file_path,
-        facebook::velox::dwio::common::FileFormat::ORC,
-        0,
-        fs::file_size(single_file_path));
-    connectorSplits.push_back(split);
-  }
 
-  std::vector<exec::Split> splits;
-  splits.reserve(connectorSplits.size());
-  for (const auto& connectorSplit : connectorSplits) {
-    splits.emplace_back(exec::Split(folly::copy(connectorSplit), -1));
-  }
   const auto op =
       PlanBuilder()
           .tableScan(rowType)
-          //.filter("l_shipdate >= 757353600 and l_shipdate < 788889600")
           .filter(
               "l_shipdate >= 8765.666666666667 and l_shipdate < 9130.666666666667 and l_discount between 0.05 and 0.07 and l_quantity < 24.0")
           .project(
@@ -132,6 +143,11 @@ TEST_P(HybridPlanPrototypeTest, prototypeTest) {
           .aggregation(
               {}, {"sum(e0)"}, {}, core::AggregationNode::Step::kPartial, false)
           .planNode();
+
+  // get data/exec splits
+  auto splits = createSplits();
+
+  // define lambda function as readCursor parameters.
   bool noMoreSplits = false;
   std::function<void(exec::Task*)> addSplits = [&](Task* task) {
     if (noMoreSplits) {
@@ -144,18 +160,49 @@ TEST_P(HybridPlanPrototypeTest, prototypeTest) {
     noMoreSplits = true;
   };
 
-  CursorParameters params;
-  params.planNode = op;
-  std::cout << "start read" << std::endl;
-  auto result_pair = readCursor(params, addSplits);
-  std::cout << "finish read" << std::endl;
-  std::vector<RowVectorPtr> results = result_pair.second;
-  std::cout << "result size: " << results.size() << std::endl;
-  int64_t num_rows = 0;
-  for (auto outputVector : results) {
-    num_rows += outputVector->size();
-  }
-  std::cout << "num_rows: " << num_rows << std::endl;
+  CursorParameters paramsVelox;
+  paramsVelox.planNode = op;
+
+  auto startVelox = std::chrono::system_clock::now();
+
+  auto resultPairVelox = readCursor(paramsVelox, addSplits);
+
+  auto endVelox = std::chrono::system_clock::now();
+  auto durationVelox = std::chrono::duration_cast<std::chrono::microseconds>(
+      endVelox - startVelox);
+  std::vector<RowVectorPtr> resultsVelox = resultPairVelox.second;
+  std::cout << "Velox result size: " << resultsVelox.size() << std::endl;
+  std::cout << "Velox compute takes " << durationVelox.count() << " us "
+            << std::endl;
+  std::cout << resultsVelox[0]->childAt(0)->asFlatVector<double>()->valueAt(0)
+            << std::endl;
+
+  // re-create new Splits. previous splits are all consumed
+  splits = createSplits();
+  noMoreSplits = false;
+
+  // build cider runtime paramters.
+  Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+  facebook::velox::cider::CiderExecutionUnitGenerator generator;
+  auto hybridPlan = generator.transformPlan(op);
+
+  CursorParameters paramsCider;
+  paramsCider.planNode = hybridPlan;
+  auto startCider = std::chrono::system_clock::now();
+
+  auto resultPairCider = readCursor(paramsCider, addSplits);
+
+  auto endCider = std::chrono::system_clock::now();
+  auto durationCider = std::chrono::duration_cast<std::chrono::microseconds>(
+      endCider - startCider);
+  std::vector<RowVectorPtr> resultsCider = resultPairCider.second;
+  std::cout << "Cider result size: " << resultsCider.size() << std::endl;
+  std::cout << "Cider compute takes " << durationCider.count() << " us "
+            << std::endl;
+  std::cout << resultsCider[0]->childAt(0)->asFlatVector<double>()->valueAt(0)
+            << std::endl;
+
+  ASSERT_TRUE(resultsVelox[0]->equalValueAt(resultsCider[0].get(), 0, 0));
 }
 
 VELOX_INSTANTIATE_TEST_SUITE_P(
