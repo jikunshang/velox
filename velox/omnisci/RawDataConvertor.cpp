@@ -142,6 +142,12 @@ CiderResultSet RawDataConvertor::convertToCider(
       case VectorEncoding::Simple::FLAT:
         toCiderResult(child, idx, col_buffer_ptr, num_rows);
         break;
+      case VectorEncoding::Simple::LAZY: {
+        // For LazyVector, we will load it here and use as TypeVector to use.
+        auto vec = (std::dynamic_pointer_cast<LazyVector>(child))->loadedVectorShared();
+        toCiderResult(vec, idx, col_buffer_ptr, num_rows);
+        break;
+      }
       default:
         VELOX_NYI(" {} conversion is not supported yet", child->encoding());
     }
