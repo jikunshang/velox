@@ -282,7 +282,7 @@ class QuerySimulationTest : public virtual HiveConnectorTestBase,
     return data.find(suffix, data.size() - suffix.size()) != std::string::npos;
   }
 
-  std::string orc_dir = "/mnt/s3/parquets/lineitem_orcs/";
+  std::string orc_dir = "/tmp/dev/velox/velox/exec/tests/data/lineitem_orcs/";
 
  private:
   int planNodeId_ = 0;
