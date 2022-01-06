@@ -186,6 +186,8 @@ void HybridExecOperator::process() {
   }
   if (isAgg_) {
     // 1. convert input data.
+    auto startConversion = std::chrono::system_clock::now();
+
     int64_t numRows = input_->size();
     auto ciderBuffer = dataConvertor_->convertToCider(input_, numRows);
 
@@ -197,11 +199,17 @@ void HybridExecOperator::process() {
     int32_t matchedRows = 0;
     int32_t errCode = 0;
 
+    auto endConversion = std::chrono::system_clock::now();
+    dataConversionCounter += std::chrono::duration_cast<std::chrono::microseconds>(
+        endConversion - startConversion);
+
     // 2. convert partial result
     int64_t* aggInitValue =
         partialAggResult_.data(); // TODO: verify, this will be overwrite?
 
     // 3. call run method
+    auto startCompute = std::chrono::system_clock::now();
+
     ciderKernel_->runWithData(
         (const int8_t**)ciderBuffer.colBuffer,
         &numRows,
@@ -209,6 +217,10 @@ void HybridExecOperator::process() {
         &matchedRows,
         &errCode,
         aggInitValue);
+
+    auto endCompute = std::chrono::system_clock::now();
+    computeCounter += std::chrono::duration_cast<std::chrono::microseconds>(
+        endCompute - startCompute);
 
     // 4. convert result into partial agg result
     partialAggResult_[0] = outBuffers[0][0];

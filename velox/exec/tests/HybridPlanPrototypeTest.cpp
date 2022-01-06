@@ -91,7 +91,9 @@ class HybridPlanPrototypeTest : public virtual HiveConnectorTestBase,
 
   std::vector<exec::Split> createSplits() {
     std::string current_path = fs::current_path().c_str();
-    std::string dir = "/tmp/dev/velox/velox/exec/tests/data/result/";
+//    std::string dir = "/tmp/dev/velox/velox/exec/tests/data/result10g/";
+    std::string dir = "/tmp/dev/velox/velox/exec/tests/data/lineitem_orcs/";
+
     path file_path(dir);
     std::vector<std::string> file_list;
     for (auto i = directory_iterator(file_path); i != directory_iterator();
@@ -127,16 +129,99 @@ class HybridPlanPrototypeTest : public virtual HiveConnectorTestBase,
 };
 
 // prototype test based on tpc-h Q6
-TEST_P(HybridPlanPrototypeTest, prototypeTest) {
+
+TEST_P(HybridPlanPrototypeTest, prototypeTestCider) {
   auto rowType =
-      ROW({"l_quantity", "l_extendedprice", "l_discount", "l_shipdate"},
+      ROW({"l_quantity", "l_extendedprice", "l_discount", "l_shipdate_new"},
           {DOUBLE(), DOUBLE(), DOUBLE(), DOUBLE()});
 
   const auto op =
       PlanBuilder()
           .tableScan(rowType)
           .filter(
-              "l_shipdate >= 8765.666666666667 and l_shipdate < 9130.666666666667 and l_discount between 0.05 and 0.07 and l_quantity < 24.0")
+              "l_shipdate_new >= 8765.666666666667 and l_shipdate_new < 9130.666666666667 and l_discount between 0.05 and 0.07 and l_quantity < 24.0")
+          .project(
+              std::vector<std::string>{"l_extendedprice * l_discount"},
+              std::vector<std::string>{"e0"})
+          .aggregation(
+              {}, {"sum(e0)"}, {}, core::AggregationNode::Step::kPartial, false)
+          .planNode();
+
+  // get data/exec splits
+  auto splits = createSplits();
+
+  // define lambda function as readCursor parameters.
+  bool noMoreSplits = false;
+  std::function<void(exec::Task*)> addSplits = [&](Task* task) {
+    if (noMoreSplits) {
+      return;
+    }
+    for (auto& split : splits) {
+      task->addSplit("0", std::move(split));
+    }
+    task->noMoreSplits("0");
+    noMoreSplits = true;
+  };
+
+  //  CursorParameters paramsVelox;
+  //  paramsVelox.planNode = op;
+  //
+  //  auto startVelox = std::chrono::system_clock::now();
+  //
+  //  auto resultPairVelox = readCursor(paramsVelox, addSplits);
+  //
+  //  auto endVelox = std::chrono::system_clock::now();
+  //  auto durationVelox =
+  //  std::chrono::duration_cast<std::chrono::microseconds>(
+  //      endVelox - startVelox);
+  //  std::vector<RowVectorPtr> resultsVelox = resultPairVelox.second;
+  //  std::cout << "Velox result size: " << resultsVelox.size() << std::endl;
+  //  std::cout << "Velox compute takes " << durationVelox.count() << " us "
+  //  << std::endl;
+  //  std::cout <<
+  //  resultsVelox[0]->childAt(0)->asFlatVector<double>()->valueAt(0)
+  //  << std::endl;
+  //
+  //  // re-create new Splits. previous splits are all consumed
+  //  splits = createSplits();
+  //  noMoreSplits = false;
+
+  // build cider runtime paramters.
+  Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+  facebook::velox::cider::CiderExecutionUnitGenerator generator;
+  auto hybridPlan = generator.transformPlan(op);
+
+  CursorParameters paramsCider;
+  paramsCider.planNode = hybridPlan;
+  auto startCider = std::chrono::system_clock::now();
+
+  auto resultPairCider = readCursor(paramsCider, addSplits);
+
+  auto endCider = std::chrono::system_clock::now();
+  auto durationCider = std::chrono::duration_cast<std::chrono::microseconds>(
+      endCider - startCider);
+  std::vector<RowVectorPtr> resultsCider = resultPairCider.second;
+  std::cout << "Cider result size: " << resultsCider.size() << std::endl;
+  std::cout << "Cider compute takes " << durationCider.count() << " us "
+            << std::endl;
+  std::cout.precision(17);
+  std::cout << std::fixed
+            << resultsCider[0]->childAt(0)->asFlatVector<double>()->valueAt(0)
+            << std::endl;
+
+  //  ASSERT_TRUE(resultsVelox[0]->equalValueAt(resultsCider[0].get(), 0, 0));
+}
+
+TEST_P(HybridPlanPrototypeTest, prototypeTest) {
+  auto rowType =
+      ROW({"l_quantity", "l_extendedprice", "l_discount", "l_shipdate_new"},
+          {DOUBLE(), DOUBLE(), DOUBLE(), DOUBLE()});
+
+  const auto op =
+      PlanBuilder()
+          .tableScan(rowType)
+          .filter(
+              "l_shipdate_new >= 8765.666666666667 and l_shipdate_new < 9130.666666666667 and l_discount between 0.05 and 0.07 and l_quantity < 24.0")
           .project(
               std::vector<std::string>{"l_extendedprice * l_discount"},
               std::vector<std::string>{"e0"})
@@ -174,38 +259,42 @@ TEST_P(HybridPlanPrototypeTest, prototypeTest) {
   std::cout << "Velox result size: " << resultsVelox.size() << std::endl;
   std::cout << "Velox compute takes " << durationVelox.count() << " us "
             << std::endl;
-  std::cout << resultsVelox[0]->childAt(0)->asFlatVector<double>()->valueAt(0)
+  std::cout.precision(17);
+  std::cout << std::fixed
+            << resultsVelox[0]->childAt(0)->asFlatVector<double>()->valueAt(0)
             << std::endl;
 
-  // re-create new Splits. previous splits are all consumed
-  splits = createSplits();
-  noMoreSplits = false;
-
-  // build cider runtime paramters.
-  Operator::registerOperator(HybridExecOperator::planNodeTranslator);
-  facebook::velox::cider::CiderExecutionUnitGenerator generator;
-  auto hybridPlan = generator.transformPlan(op);
-
-  CursorParameters paramsCider;
-  paramsCider.planNode = hybridPlan;
-  auto startCider = std::chrono::system_clock::now();
-
-  auto resultPairCider = readCursor(paramsCider, addSplits);
-
-  auto endCider = std::chrono::system_clock::now();
-  auto durationCider = std::chrono::duration_cast<std::chrono::microseconds>(
-      endCider - startCider);
-  std::vector<RowVectorPtr> resultsCider = resultPairCider.second;
-  std::cout << "Cider result size: " << resultsCider.size() << std::endl;
-  std::cout << "Cider compute takes " << durationCider.count() << " us "
-            << std::endl;
-  std::cout << resultsCider[0]->childAt(0)->asFlatVector<double>()->valueAt(0)
-            << std::endl;
-
-  ASSERT_TRUE(resultsVelox[0]->equalValueAt(resultsCider[0].get(), 0, 0));
+  //  // re-create new Splits. previous splits are all consumed
+  //  splits = createSplits();
+  //  noMoreSplits = false;
+  //
+  //  // build cider runtime paramters.
+  //  Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+  //  facebook::velox::cider::CiderExecutionUnitGenerator generator;
+  //  auto hybridPlan = generator.transformPlan(op);
+  //
+  //  CursorParameters paramsCider;
+  //  paramsCider.planNode = hybridPlan;
+  //  auto startCider = std::chrono::system_clock::now();
+  //
+  //  auto resultPairCider = readCursor(paramsCider, addSplits);
+  //
+  //  auto endCider = std::chrono::system_clock::now();
+  //  auto durationCider =
+  //  std::chrono::duration_cast<std::chrono::microseconds>(
+  //      endCider - startCider);
+  //  std::vector<RowVectorPtr> resultsCider = resultPairCider.second;
+  //  std::cout << "Cider result size: " << resultsCider.size() << std::endl;
+  //  std::cout << "Cider compute takes " << durationCider.count() << " us "
+  //            << std::endl;
+  //  std::cout <<
+  //  resultsCider[0]->childAt(0)->asFlatVector<double>()->valueAt(0)
+  //            << std::endl;
+  //
+  //  ASSERT_TRUE(resultsVelox[0]->equalValueAt(resultsCider[0].get(), 0, 0));
 }
 
 VELOX_INSTANTIATE_TEST_SUITE_P(
     HybridPlanPrototypeTests,
     HybridPlanPrototypeTest,
-    testing::Values(true, false));
+    testing::Values(false));

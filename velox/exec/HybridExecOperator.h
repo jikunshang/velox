@@ -91,6 +91,8 @@ class HybridExecOperator : public Operator {
 
   void finish() override {
     Operator::finish();
+    std::cout << "conversion takes " << dataConversionCounter.count()  << "us" << std::endl;
+    std::cout << "compute takes " << computeCounter.count()  << "us" << std::endl;
   }
 
  private:
@@ -117,6 +119,9 @@ class HybridExecOperator : public Operator {
   RowVectorPtr tmpOut;
 
   std::shared_ptr<DataConvertor> dataConvertor_;
+
+  std::chrono::microseconds dataConversionCounter;
+  std::chrono::microseconds computeCounter;
 
   void process();
 
