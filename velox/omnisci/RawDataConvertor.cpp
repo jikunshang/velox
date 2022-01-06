@@ -130,7 +130,8 @@ void toCiderResult(
 
 CiderResultSet RawDataConvertor::convertToCider(
     RowVectorPtr input,
-    int num_rows) {
+    int num_rows,
+    std::chrono::microseconds* timer) {
   RowVector* row = input.get();
   auto* rowVector = row->as<RowVector>();
   auto size = rowVector->childrenSize();
@@ -144,7 +145,12 @@ CiderResultSet RawDataConvertor::convertToCider(
         break;
       case VectorEncoding::Simple::LAZY: {
         // For LazyVector, we will load it here and use as TypeVector to use.
+        auto tic = std::chrono::system_clock::now();
         auto vec = (std::dynamic_pointer_cast<LazyVector>(child))->loadedVectorShared();
+        auto toc = std::chrono::system_clock::now();
+        if(timer) {
+          *timer +=  std::chrono::duration_cast<std::chrono::microseconds>(toc - tic);
+        }
         toCiderResult(vec, idx, col_buffer_ptr, num_rows);
         break;
       }

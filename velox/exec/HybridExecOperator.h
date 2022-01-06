@@ -93,6 +93,7 @@ class HybridExecOperator : public Operator {
     Operator::finish();
     std::cout << "conversion takes " << dataConversionCounter.count()  << "us" << std::endl;
     std::cout << "compute takes " << computeCounter.count()  << "us" << std::endl;
+    std::cout << "load vector takes " << convertorInternalCounter.count()  << "us" << std::endl;
   }
 
  private:
@@ -122,6 +123,7 @@ class HybridExecOperator : public Operator {
 
   std::chrono::microseconds dataConversionCounter;
   std::chrono::microseconds computeCounter;
+  std::chrono::microseconds convertorInternalCounter;
 
   void process();
 

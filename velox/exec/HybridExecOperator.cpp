@@ -189,7 +189,7 @@ void HybridExecOperator::process() {
     auto startConversion = std::chrono::system_clock::now();
 
     int64_t numRows = input_->size();
-    auto ciderBuffer = dataConvertor_->convertToCider(input_, numRows);
+    auto ciderBuffer = dataConvertor_->convertToCider(input_, numRows, &convertorInternalCounter);
 
     int32_t colNum = partialAggResult_.size(); // FIXME:
     int64_t** outBuffers = (int64_t**)std::malloc(sizeof(int64_t*) * colNum);
@@ -228,7 +228,7 @@ void HybridExecOperator::process() {
     // NOTE: not ready yet!!
     // 1. convert input data.
     int64_t numRows = input_->size();
-    auto ciderBuffer = dataConvertor_->convertToCider(input_, numRows);
+    auto ciderBuffer = dataConvertor_->convertToCider(input_, numRows, nullptr);
 
     int32_t colNum = 1; // FIXME:
     int64_t** outBuffers = (int64_t**)std::malloc(sizeof(int64_t*) * colNum);
