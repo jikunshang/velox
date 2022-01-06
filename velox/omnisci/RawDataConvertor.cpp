@@ -26,7 +26,7 @@ void toCiderImpl(
   int8_t** col_buffer = *col_buffer_ptr;
   auto childVal = child->asFlatVector<T>();
   auto* rawValues = childVal->mutableRawValues();
-  T* column = (T*)std::malloc(sizeof(T) * num_rows);
+//  T* column = (T*)std::malloc(sizeof(T) * num_rows);
   if (child->mayHaveNulls()) {
     auto nulls = child->rawNulls();
     for (auto pos = 0; pos < num_rows; pos++) {
@@ -43,8 +43,8 @@ void toCiderImpl(
       }
     }
   }
-  memcpy(column, rawValues, sizeof(T) * num_rows);
-  col_buffer[idx] = reinterpret_cast<int8_t*>(column);
+//  memcpy(column, rawValues, sizeof(T) * num_rows);
+  col_buffer[idx] = reinterpret_cast<int8_t*>(rawValues);
 }
 
 template <>
