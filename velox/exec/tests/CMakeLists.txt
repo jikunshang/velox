@@ -18,6 +18,7 @@ add_executable(
   CiderTest.cpp
   CrossJoinTest.cpp
   DriverTest.cpp
+  QuerySimulationTest.cpp
   EnforceSingleRowTest.cpp
   FilterProjectTest.cpp
   TableScanTest.cpp
@@ -45,7 +46,8 @@ add_executable(
   PlanNodeToStringTest.cpp
   FunctionSignatureBuilderTest.cpp
   UnnestTest.cpp
-  AssignUniqueIdTest.cpp)
+  AssignUniqueIdTest.cpp
+  HybridPlanPrototypeTest.cpp)
 
 add_test(
   NAME velox_exec_test
