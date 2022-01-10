@@ -119,6 +119,15 @@ void toCiderImpl<TypeKind::TIMESTAMP>(
   VELOX_NYI(" {} conversion is not supported yet");
 }
 
+template <>
+void toCiderImpl<TypeKind::DATE>(
+    VectorPtr& child,
+    int idx,
+    int8_t*** col_buffer_ptr,
+    int num_rows) {
+  VELOX_NYI(" {} conversion is not supported yet");
+}
+
 void toCiderResult(
     VectorPtr& child,
     int idx,
@@ -256,6 +265,15 @@ VectorPtr toVeloxImpl<TypeKind::VARBINARY>(
 
 template <>
 VectorPtr toVeloxImpl<TypeKind::TIMESTAMP>(
+    const TypePtr& vType,
+    int8_t* data_buffer,
+    int num_rows,
+    memory::MemoryPool* pool) {
+  VELOX_NYI(" {} conversion is not supported yet");
+}
+
+template <>
+VectorPtr toVeloxImpl<TypeKind::DATE>(
     const TypePtr& vType,
     int8_t* data_buffer,
     int num_rows,
