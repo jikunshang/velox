@@ -16,8 +16,8 @@
 
 #include <folly/init/Init.h>
 #include "velox/dwio/dwrf/test/utils/BatchMaker.h"
-#include "velox/exec/tests/OperatorTestBase.h"
-#include "velox/exec/tests/PlanBuilder.h"
+#include "velox/exec/tests/utils/OperatorTestBase.h"
+#include "velox/exec/tests/utils/PlanBuilder.h"
 
 // FIXME: Workaround dependency issue from omnisci and velox integrations
 #include "velox/cider/VeloxPlanToCiderExecutionUnit.h"

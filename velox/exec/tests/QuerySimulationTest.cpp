@@ -17,9 +17,9 @@
 #include "velox/connectors/hive/HiveConnector.h"
 #include "velox/connectors/hive/HiveConnectorSplit.h"
 #include "velox/dwio/dwrf/test/utils/DataFiles.h"
-#include "velox/exec/tests/Cursor.h"
-#include "velox/exec/tests/HiveConnectorTestBase.h"
-#include "velox/exec/tests/PlanBuilder.h"
+#include "velox/exec/tests/utils/Cursor.h"
+#include "velox/exec/tests/utils/HiveConnectorTestBase.h"
+#include "velox/exec/tests/utils/PlanBuilder.h"
 #include "velox/type/Type.h"
 #include "velox/type/tests/FilterBuilder.h"
 #include "velox/type/tests/SubfieldFiltersBuilder.h"
@@ -103,8 +103,8 @@ class QuerySimulationTest : public virtual HiveConnectorTestBase,
 
     std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>>
         assignments;
-    assignments[c_1] = regularColumn(c_1);
-    assignments[c_2] = regularColumn(c_2);
+    assignments[c_1] = regularColumn(c_1, DOUBLE());
+    assignments[c_2] = regularColumn(c_2, DOUBLE());
 
     auto op = PlanBuilder()
                   .tableScan(outputType, tableHandle, assignments)
@@ -192,8 +192,8 @@ class QuerySimulationTest : public virtual HiveConnectorTestBase,
 
     std::unordered_map<std::string, std::shared_ptr<connector::ColumnHandle>>
         assignments;
-    assignments[c_1] = regularColumn(c_1);
-    assignments[c_2] = regularColumn(c_2);
+    assignments[c_1] = regularColumn(c_1, DOUBLE());
+    assignments[c_2] = regularColumn(c_2, DOUBLE());
 
     std::shared_ptr<core::PlanNode> planNode;
     planNodeId_ = 0;
