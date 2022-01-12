@@ -187,7 +187,7 @@ TEST_P(HybridPlanPrototypeTest, prototypeTestCider) {
   //  noMoreSplits = false;
 
   // build cider runtime paramters.
-  Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+  Operator::registerOperator(std::make_unique<HybridPlanNodeTranslator>());
   facebook::velox::cider::CiderExecutionUnitGenerator generator;
   auto hybridPlan = generator.transformPlan(op);
 
@@ -269,7 +269,7 @@ TEST_P(HybridPlanPrototypeTest, prototypeTest) {
   //  noMoreSplits = false;
   //
   //  // build cider runtime paramters.
-  //  Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+  //  Operator::registerOperator(std::make_unique<HybridPlanNodeTranslator>());
   //  facebook::velox::cider::CiderExecutionUnitGenerator generator;
   //  auto hybridPlan = generator.transformPlan(op);
   //

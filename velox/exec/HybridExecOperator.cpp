@@ -19,18 +19,18 @@
 #include "HybridExecOperator.h"
 
 namespace facebook::velox::exec {
-Operator::PlanNodeTranslator HybridExecOperator::planNodeTranslator =
-    [](DriverCtx* ctx,
-       int32_t id,
-       const std::shared_ptr<const core::PlanNode>& node)
-    -> std::unique_ptr<HybridExecOperator> {
-  if (auto hybridOp = std::dynamic_pointer_cast<
-          const facebook::velox::core::HybridPlanNode>(node)) {
-    // TODO: translate from RelAlgExecutionUnit into kernel
-    return std::make_unique<HybridExecOperator>(id, ctx, hybridOp);
-  }
-  return nullptr;
-};
+//Operator::PlanNodeTranslator HybridExecOperator::planNodeTranslator =
+//    [](DriverCtx* ctx,
+//       int32_t id,
+//       const std::shared_ptr<const core::PlanNode>& node)
+//    -> std::unique_ptr<HybridExecOperator> {
+//  if (auto hybridOp = std::dynamic_pointer_cast<
+//          const facebook::velox::core::HybridPlanNode>(node)) {
+//    // TODO: translate from RelAlgExecutionUnit into kernel
+//    return std::make_unique<HybridExecOperator>(id, ctx, hybridOp);
+//  }
+//  return nullptr;
+//};
 
 bool HybridExecOperator::needsInput() const {
   // TODO: just for agg, what about other case

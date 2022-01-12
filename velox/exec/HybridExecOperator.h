@@ -31,6 +31,7 @@
 using namespace facebook::velox::cider;
 
 namespace facebook::velox::exec {
+
 class HybridExecOperator : public Operator {
  public:
   HybridExecOperator(
@@ -77,7 +78,7 @@ class HybridExecOperator : public Operator {
     dataConvertor_ = DataConvertor::create(CONVERT_TYPE::DIRECT);
   };
 
-  static PlanNodeTranslator planNodeTranslator;
+//  HybridPlanNodeTranslator hybridPlanNodeTranslator;
 
   bool needsInput() const override;
 
@@ -172,5 +173,29 @@ class HybridExecOperator : public Operator {
       }
     }
   }
+};
+
+class HybridPlanNodeTranslator : public Operator::PlanNodeTranslator {
+ public:
+//  ~HybridPlanNodeTranslator() {}
+  HybridPlanNodeTranslator() {}
+
+  std::unique_ptr<Operator> translate(
+      DriverCtx* ctx,
+      int32_t id,
+      const std::shared_ptr<const core::PlanNode>& node) override {
+    if (auto hybridOp = std::dynamic_pointer_cast<
+        const facebook::velox::core::HybridPlanNode>(node)) {
+      // TODO: translate from RelAlgExecutionUnit into kernel
+      return std::make_unique<HybridExecOperator>(id, ctx, hybridOp);
+    }
+    return nullptr;
+  }
+
+  std::optional<uint32_t> maxDrivers(
+      const std::shared_ptr<const core::PlanNode>& /* node */) override {
+    return (uint32_t)1;
+  }
+
 };
 } // namespace facebook::velox::exec

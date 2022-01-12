@@ -37,7 +37,7 @@ class HybridExecOperatorTest : public OperatorTestBase {
       const std::string& duckDBSql) {
     auto startCider = std::chrono::system_clock::now();
 
-    Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+    Operator::registerOperator(std::make_unique<HybridPlanNodeTranslator>());
     facebook::velox::cider::CiderExecutionUnitGenerator generator;
     auto hybridPlan = generator.transformPlan(planNode);
     // TODO: we should verify whether this hybridPlan is valid.
@@ -169,7 +169,7 @@ TEST_F(HybridExecOperatorTest, sum_int_product_double) {
 
 // Currently, int * int will cause some type issue, cause some check failed in
 // omnisci. TEST_F(HybridExecOperatorTest, sum_int_product_int) {
-//   Operator::registerOperator(HybridExecOperator::planNodeTranslator);
+//   Operator::registerOperator(std::make_unique<HybridPlanNodeTranslator>());
 //   std::vector<RowVectorPtr> vectors;
 //   for (int32_t i = 0; i < 1; ++i) {
 //     auto vector = std::dynamic_pointer_cast<RowVector>(
