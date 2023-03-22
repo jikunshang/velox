@@ -464,7 +464,7 @@ VeloxToSubstraitExprConvertor::toSubstraitExpr(
 
   ::substrait::Expression_ReferenceSegment_StructField* directStruct =
       substraitFieldExpr->mutable_direct_reference()->mutable_struct_field();
-
+  substraitFieldExpr->mutable_root_reference();
   directStruct->set_field(inputType->getChildIdx(exprName));
   return *substraitFieldExpr;
 }

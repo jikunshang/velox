@@ -523,7 +523,13 @@ std::vector<MaterializedRow> materialize(const RowVectorPtr& vector) {
     MaterializedRow row;
     row.reserve(numColumns);
     for (size_t j = 0; j < numColumns; ++j) {
-      row.push_back(variantAt(vector->childAt(j), i));
+      auto value = variantAt(vector->childAt(j), i);
+      if(value.isNull()) {
+        // todo: need check type?
+        row.push_back(variant(vector->typeKind()));
+      } else {
+        row.push_back(value);
+      }
     }
     rows.push_back(row);
   }

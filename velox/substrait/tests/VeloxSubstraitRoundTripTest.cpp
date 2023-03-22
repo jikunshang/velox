@@ -71,6 +71,10 @@ class VeloxSubstraitRoundTripTest : public OperatorTestBase {
     // Assert velox again.
     assertQuery(samePlan, duckDbSql);
   }
+<<<<<<< HEAD:velox/substrait/tests/VeloxSubstraitRoundTripTest.cpp
+=======
+
+>>>>>>> f6048db7 (squash all):velox/substrait/tests/VeloxSubstraitRoundTripPlanConverterTest.cpp
   std::shared_ptr<VeloxToSubstraitPlanConvertor> veloxConvertor_ =
       std::make_shared<VeloxToSubstraitPlanConvertor>();
   std::shared_ptr<SubstraitVeloxPlanConverter> substraitConverter_ =
@@ -172,6 +176,19 @@ TEST_F(VeloxSubstraitRoundTripTest, sumAndCount) {
                   .planNode();
 
   assertPlanConversion(plan, "SELECT sum(c1), count(c4) FROM tmp");
+}
+
+TEST_F(VeloxSubstraitRoundTripTest, avgAndCount) {
+  auto vectors = makeVectors(2, 7, 3);
+  createDuckDbTable(vectors);
+
+  auto plan = PlanBuilder()
+                  .values(vectors)
+                  .partialAggregation({}, {"avg(c1)", "count(c4)"})
+                  .finalAggregation()
+                  .planNode();
+
+  assertPlanConversion(plan, "SELECT avg(c1), count(c4) FROM tmp");
 }
 
 TEST_F(VeloxSubstraitRoundTripTest, sumGlobal) {
@@ -277,14 +294,57 @@ TEST_F(VeloxSubstraitRoundTripTest, caseWhen) {
       "SELECT case when c0=1 then c1 when c0=2 then c2  end as x FROM tmp");
 }
 
+TEST_F(VeloxSubstraitRoundTripTest, cast) {
+  auto vectors = makeVectors(3, 4, 2);
+  createDuckDbTable(vectors);
+  auto plan = PlanBuilder().values(vectors).project({"true"}).planNode();
+  assertPlanConversion(plan, "SELECT true  FROM tmp");
+}
+
 TEST_F(VeloxSubstraitRoundTripTest, ifThen) {
   auto vectors = makeVectors(3, 4, 2);
   createDuckDbTable(vectors);
   auto plan = PlanBuilder()
                   .values(vectors)
-                  .project({"if (c0=1, c0 + 1, c1 + 2) as x"})
+                  .project({"if (c0 = 1, c0 + 1, c1 + 2) as x"})
                   .planNode();
-  assertPlanConversion(plan, "SELECT if (c0=1, c0 + 1, c1 + 2) as x FROM tmp");
+  assertPlanConversion(
+      plan, "SELECT if (c0 = 1, c0 + 1, c1 + 2) as x FROM tmp");
+}
+
+TEST_F(VeloxSubstraitRoundTripTest, coalesce) {
+  auto vectors = makeVectors(3, 4, 2);
+  createDuckDbTable(vectors);
+  auto plan =
+      PlanBuilder().values(vectors).project({"coalesce(c0,c1) "}).planNode();
+  assertPlanConversion(plan, "SELECT coalesce(c0,c1)   FROM tmp");
+}
+
+TEST_F(VeloxSubstraitRoundTripTest, notNullLiteral) {
+  auto vectors = makeRowVector(ROW({}, {}), 1);
+  auto plan = PlanBuilder(pool_.get())
+                  .values({vectors})
+                  .addNode([&](std::string id, core::PlanNodePtr input) {
+                    std::vector<std::string> projectNames = {
+                        "a", "b", "c", "d", "e", "f", "g", "h"};
+                    std::vector<core::TypedExprPtr> projectExpressions = {
+                        std::make_shared<core::ConstantTypedExpr>((bool)1),
+                        std::make_shared<core::ConstantTypedExpr>((int8_t)23),
+                        std::make_shared<core::ConstantTypedExpr>((int16_t)45),
+                        std::make_shared<core::ConstantTypedExpr>((int32_t)678),
+                        std::make_shared<core::ConstantTypedExpr>((int64_t)910),
+                        std::make_shared<core::ConstantTypedExpr>((float)1.23),
+                        std::make_shared<core::ConstantTypedExpr>((double)4.56),
+                        std::make_shared<core::ConstantTypedExpr>("789")};
+                    return std::make_shared<core::ProjectNode>(
+                        id,
+                        std::move(projectNames),
+                        std::move(projectExpressions),
+                        input);
+                  })
+                  .planNode();
+  assertPlanConversion(
+      plan, "SELECT true, 23, 45, 678, 910, 1.23, 4.56, '789'");
 }
 
 TEST_F(VeloxSubstraitRoundTripTest, orderBySingleKey) {
