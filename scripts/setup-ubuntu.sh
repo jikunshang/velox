@@ -30,6 +30,14 @@ export CMAKE_BUILD_TYPE=Release
 
 # Install all velox and folly dependencies.
 sudo --preserve-env apt update && sudo apt install -y \
+  libiberty-dev \
+  uuid-dev \
+  libuuid1 \
+  libgsasl7-dev \
+  libkrb5-dev \
+  libxml2-dev \
+  libiberty-dev \
+  *thrift* \
   g++ \
   cmake \
   ccache \
@@ -75,6 +83,26 @@ function prompt {
   ) 2> /dev/null
 }
 
+function install_libhdfs3 {
+  github_checkout apache/hawq master
+  cd depends/libhdfs3
+ sed -i "/FIND_PACKAGE(GoogleTest REQUIRED)/d" ./CMakeLists.txt
+  sed -i "s/dumpversion/dumpfullversion/" ./CMake/Platform.cmake
+ sed -i "s/dfs.domain.socket.path\", \"\"/dfs.domain.socket.path\", \"\/var\/lib\/hadoop-hdfs\/dn_socket\"/g" src/common/SessionConfig.cpp
+ sed -i "s/pos < endOfCurBlock/pos \< endOfCurBlock \&\& pos \- cursor \<\= 128 \* 1024/g" src/client/InputStreamImpl.cpp
+ cmake_install
+}
+
+function install_protobuf {
+  wget https://github.com/protocolbuffers/protobuf/releases/download/v21.4/protobuf-all-21.4.tar.gz
+  tar -xzf protobuf-all-21.4.tar.gz
+  cd protobuf-21.4
+  ./configure  CXXFLAGS="-fPIC"  --prefix=/usr/local
+  make "-j$(nproc)"
+  sudo make install
+  sudo ldconfig
+}
+
 function install_fmt {
   github_checkout fmtlib/fmt 8.0.1
   cmake_install -DFMT_TEST=OFF
@@ -94,8 +122,10 @@ function install_conda {
 
 function install_velox_deps {
   run_and_time install_fmt
+  run_and_time install_protobuf
+  run_and_time install_libhdfs3
   run_and_time install_folly
-  run_and_time install_conda
+  #run_and_time install_conda
 }
 
 (return 2> /dev/null) && return # If script was sourced, don't run commands.

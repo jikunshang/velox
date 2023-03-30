@@ -29,7 +29,8 @@ set(PROTO_OUTPUT_FILES ${PROTO_HDRS} ${PROTO_SRCS})
 set_source_files_properties(${PROTO_OUTPUT_FILES} PROPERTIES GENERATED TRUE)
 
 get_filename_component(PROTO_DIR ${substrait_proto_directory}/, DIRECTORY)
-
+message("------------------------- PROTO_OUTPUT_DIR: ${PROTO_OUTPUT_DIR}")
+include_directories(${PROTO_OUTPUT_DIR})
 # Generate Substrait hearders
 add_custom_command(
   OUTPUT ${PROTO_OUTPUT_FILES}
@@ -41,9 +42,10 @@ add_custom_command(
 add_custom_target(substrait_proto ALL DEPENDS ${PROTO_OUTPUT_FILES})
 add_dependencies(substrait_proto protobuf::libprotobuf)
 
+add_library(substrait_proto_lib STATIC ${PROTO_SRCS})
+target_link_libraries(substrait_proto_lib protobuf fmt::fmt)
 
 set(SRCS
-    ${PROTO_SRCS}
     SubstraitParser.cpp
     SubstraitToVeloxExpr.cpp
     SubstraitToVeloxPlan.cpp
@@ -59,7 +61,7 @@ set(SRCS
 add_library(velox_substrait_plan_converter ${SRCS})
 target_include_directories(velox_substrait_plan_converter
                            PUBLIC ${PROTO_OUTPUT_DIR})
-target_link_libraries(velox_substrait_plan_converter velox_connector
+target_link_libraries(velox_substrait_plan_converter substrait_proto_lib velox_connector
                       velox_dwio_dwrf_common velox_functions_spark)
 
 if(${VELOX_BUILD_TESTING})
